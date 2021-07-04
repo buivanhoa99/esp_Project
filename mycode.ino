@@ -19,33 +19,37 @@ const char* password = STAPSK;
 
 ESP8266WebServer server(80);
 
+class PcInfo{
+  public : 
+    int Id;
+    String Name;
+    String MacAddress; 
+    PcInfo(){};
+    PcInfo(int id,String name,String MAC){
+      Id= id;
+      Name = name;
+      MacAddress = MAC;
+    }
+};
+#define COUNT 4
+PcInfo listPC [COUNT] ={
+    PcInfo(0,"Hoá","4C:ED:FB:43:61:9D"),
+    PcInfo(1,"Lên","E0:D5:5E:D1:DA:BC"),
+    PcInfo(2,"Nguyễn","E0:D5:5E:D1:DA:BC"),
+    PcInfo(3,"Khải","E0:D5:5E:D1:DA:BC")
+  };
 
-void wakeMyPC() {
+void wakeMyPC(String MAC) {
     WOL.setRepeat(3, 100);
     WOL.calculateBroadcastAddress(WiFi.localIP(), WiFi.subnetMask());
 
-    
-    const char *MACAddress = "4C:ED:FB:43:61:9D";
-    WOL.sendMagicPacket(MACAddress);
+    WOL.sendMagicPacket(MAC);
+    WOL.sendMagicPacket(MAC,7);
 }
 
-void handleNotFound() {
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
-}
 
 void setup(void) {
-
+  
   Serial.begin(9600);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -66,38 +70,59 @@ void setup(void) {
     Serial.println("MDNS responder started");
   }
 
+
   server.on("/", []{
-        String html = "<!DOCTYPE html>\
-          <html lang='en'>\
-          <head>\
-              <meta charset='UTF-8'>\
-              <meta http-equiv='X-UA-Compatible' content='IE=edge'>\
-              <meta name='viewport' content='width=device-width, initial-scale=1.0'>\
-              <title>\Document</title>\
-          </head>\
-          <body>\
-              <h1>\Hello bui van</h1>\
-              <a href ='/ON'>\<button>\Hoa</button>\</a>\
+        String ONE = "<!DOCTYPE html>\
+              <html lang='en'>\
+              <head>\
+                  <meta charset='UTF-8'>\
+                  <meta >\
+                  <meta name='viewport' content='width=device-width, initial-scale=1.0'>\
+                  <link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css'>\
+                  <link rel='stylesheet' href='https://pro.fontawesome.com/releases/v5.10.0/css/all.css' />\
+                  <title>2CS Webpage</title>\
+              </head>\
+              <body>\
+                  <h1 style='text-align: center;'>List of 2CS's computers</h1>\
+                  <div class='w-50 mx-auto'>\
+                  <table class='table table-hover'>\
+                      <thead>\
+                        <tr>\
+                          <th>#</th>\
+                          <th scope='col'>Name</th>\
+                          <th scope='col'>MAC Address</th>\
+                          <th scope='col'>Status</th>\
+                          <th></th>\
+                        </tr>\
+                      </thead>\
+                      <tbody>";
+          String TWO="";
+          for (int i=0;i<COUNT;i++)
+              TWO = TWO + "<tr>\
+                <th scope='row'>"+String(i+1)+"</th>\
+                <td>"+listPC[i].Name+"</td>\
+                <td>"+listPC[i].MacAddress+"</td>\
+                <td>\
+                    <a href='/ON?id="+listPC[i].MacAddress+"'><i style='font-size: 40px;' class='fas fa-power-off'></i>\
+                    </a>\
+                </td>\
+              </tr>";
+   
+          String THREE = "</tbody>\
+                </table>\
+              </div>\
           </body>\
           </html>";
-         server.send(200,"text/html",html);
-         
+         server.send(200,"text/html",ONE+TWO+THREE);
     });
 
 
   server.on("/ON",[]{
-        wakeMyPC();
-        server.send(200,"text/html","Successful");
+        String id_string = server.arg("id");
+        int id = id_string.toInt();
+        wakeMyPC(listPC[id].MacAddress);
+        server.send(200,"text/html","<h1>Power on "+ listPC[id].Name + "successfully</h1>"  );
     });
-
-
-
-  server.onNotFound(handleNotFound);
-
- 
-
-  // Hook examples
-  /////////////////////////////////////////////////////////
 
   server.begin();
   Serial.println("HTTP server started");
